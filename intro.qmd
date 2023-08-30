@@ -1,0 +1,114 @@
+---
+title: "Proyecto Delfos"
+lang: es
+format: 
+  html:
+    css: styles.css
+    fig-format: svg
+    self-contained: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+
+![Oráculo de Delfos](https://www.estambul.net/wp-content/uploads/2015/08/Oraculo-de-Delfos.jpg){fig-align="center" width="100%" #fig-delfos}
+
+```{r}
+#| echo: false
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(here)
+theme_set(theme_minimal(base_size = 14))
+
+fuel <- read_excel(
+  here("data/CONSOLIDADO COMBUSTIBLE.xlsx"),
+  sheet = "CONSOLIDADO 2023"
+) |> 
+  janitor::clean_names() |> 
+  mutate(fecha = as_date(fecha))
+```
+
+
+### Objetivos
+
+- Pronosticar la carga mensual de combustible del R. Nro. 6 "Chacabuco", para los años 2024 y 2025.
+- Desagregar el pronóstico por producto (Diesel, G95SP o G97SP, @fig-diesel).
+- Garantizar una tasa de error de la predicción (por definir).
+
+```{r}
+fuel_monthly <- fuel |> 
+  mutate(mes = ym(format(fecha, "%Y%m"))) |> 
+  count(producto, mes, wt = litros, name = "litros")
+
+all_months <- seq.Date(min(fuel_monthly$mes), max(fuel_monthly$mes), by = "month")
+
+fuel_monthly <- fuel_monthly |> 
+  complete(
+    mes = all_months, 
+    producto = unique(fuel_monthly$producto),
+    fill = list(litros = 0)
+  )
+
+last_points <- fuel_monthly |> 
+  slice_max(mes, by = producto)
+  
+fuel_colors <- c("DIESEL" = "#CD2728", "G95SP" = "#EB9932", "G97SP" = "#EBC427")
+```
+
+```{r}
+#| fig-align: left
+#| label: fig-diesel
+#| fig-cap: 'Carga mensual histórica de combustible del R. Nro. 6 "Chacabuco"'
+
+fuel_monthly |> 
+  ggplot(aes(x = mes, y = litros)) +
+  geom_line(aes(color = producto), linewidth = 1) +
+  geom_ribbon(aes(ymin = 0, ymax = litros, fill = producto), alpha = 0.4) +
+  geom_point(data = last_points, size = 2) +
+  facet_wrap(vars(producto), ncol = 3, scales = "free_y") +
+  guides(color = "none", fill = "none") +
+  scale_color_manual(values = fuel_colors) +
+  scale_fill_manual(values = fuel_colors) +
+  scale_x_date(expand = expansion(mult = c(0, 0.1))) +
+  scale_y_continuous(labels = scales::label_number()) +
+  theme(
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    strip.text = element_text(size = 18, face = "bold")
+  ) +
+  labs(x = NULL, y = "Carga mensual de combustible (litros)")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
